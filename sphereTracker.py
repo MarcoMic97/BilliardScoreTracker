@@ -63,12 +63,12 @@ def detect_spheres(frame):
     orange_contours, _ = cv2.findContours(orange_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     
     detected_spheres = {'white': [], 'dark_red': [], 'orange': []}
-    
-    for contour in white_contours:
-        ((x, y), radius) = cv2.minEnclosingCircle(contour)
-        if radius > 10:
-            detected_spheres['white'].append((int(x), int(y), int(radius)))
-    
+    #______________________________________________________________________________________________________________________________________________________________________
+    # for contour in white_contours:
+    #     ((x, y), radius) = cv2.minEnclosingCircle(contour)
+    #     if radius > 10:
+    #         detected_spheres['white'].append((int(x), int(y), int(radius)))
+    #______________________________________________________________________________________________________________________________________________________________________
     for contour in dark_red_contours:
         ((x, y), radius) = cv2.minEnclosingCircle(contour)
         if radius > 10:
