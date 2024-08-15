@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-# Initialize global variables for scores and players
+# Initialize global variables for scores and players/teams
 round_scores = []
 total_scores = []
 current_team_index = 0
@@ -12,29 +12,35 @@ teams = []
 def setup_game():
     global round_scores, total_scores, players, teams
 
-    # Input the number of players
-    num_players = int(input("Enter the number of players (2 to 4): "))
-    
-    # Check if they are playing in teams
-    team_mode = input("Are players playing in teams? (y/n): ").strip().lower()
+    # Input the number of players (1v1, 1v1v1, 1v1v1v1, 2v2, 2v2v2, 2v2v2v2)
+    print("Choose a game mode:")
+    print("1: 1v1")
+    print("2: 1v1v1")
+    print("3: 1v1v1v1")
+    print("4: 2v2")
+    print("5: 2v2v2")
+    print("6: 2v2v2v2")
+    game_mode = int(input("Enter the number corresponding to the game mode: "))
 
-    if team_mode == 'y':
-        num_teams = int(input(f"Enter the number of teams (2 to {num_players}): "))
-        teams = [[] for _ in range(num_teams)]
-        
-        # Assign players to teams
-        for i in range(num_players):
-            player_name = input(f"Enter name of player {i+1}: ")
-            team_number = int(input(f"Assign {player_name} to team (1 to {num_teams}): ")) - 1
-            teams[team_number].append(player_name)
-        players = [" & ".join(team) for team in teams]
-    else:
-        # If no teams, treat each player as their own team
+    if game_mode in [1, 2, 3]:
+        num_players = game_mode + 1  # 1v1, 1v1v1, 1v1v1v1
         for i in range(num_players):
             player_name = input(f"Enter name of player {i+1}: ")
             players.append(player_name)
+        teams = [[player] for player in players]
+    elif game_mode in [4, 5, 6]:
+        num_teams = game_mode - 2  # 2v2, 2v2v2, 2v2v2v2
+        teams = [[] for _ in range(num_teams)]
+        for i in range(num_teams * 2):
+            player_name = input(f"Enter name of player {i+1}: ")
+            team_number = (i % num_teams)
+            teams[team_number].append(player_name)
+        players = [" & ".join(team) for team in teams]
+    else:
+        print("Invalid game mode selected.")
+        return setup_game()  # Restart setup if the input is invalid
 
-    # Initialize the scores for each player/team
+    # Initialize the scores for each team/player
     round_scores = [0] * len(players)
     total_scores = [0] * len(players)
 
