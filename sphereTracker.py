@@ -9,10 +9,16 @@ scored = False
 players = []
 teams = []
 
+# Color ranges for pin detection (assume wood color)
+lower_wood = np.array([10, 50, 50])  # Adjust these values as needed
+upper_wood = np.array([20, 255, 255])
+
+# Coordinates for the pin setup (cross pattern)
+pin_positions = [(320, 240), (300, 260), (340, 260), (320, 280), (320, 220)]  # Example positions
+
 def setup_game():
     global round_scores, total_scores, players, teams
 
-    # Input the number of players (1v1, 1v1v1, 1v1v1v1, 2v2, 2v2v2, 2v2v2v2)
     print("Choose a game mode:")
     print("1: 1v1")
     print("2: 1v1v1")
@@ -63,12 +69,12 @@ def detect_spheres(frame):
     orange_contours, _ = cv2.findContours(orange_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     
     detected_spheres = {'white': [], 'dark_red': [], 'orange': []}
-    #______________________________________________________________________________________________________________________________________________________________________
-    # for contour in white_contours:
-    #     ((x, y), radius) = cv2.minEnclosingCircle(contour)
-    #     if radius > 10:
-    #         detected_spheres['white'].append((int(x), int(y), int(radius)))
-    #______________________________________________________________________________________________________________________________________________________________________
+    
+    for contour in white_contours:
+        ((x, y), radius) = cv2.minEnclosingCircle(contour)
+        if radius > 10:
+            detected_spheres['white'].append((int(x), int(y), int(radius)))
+    
     for contour in dark_red_contours:
         ((x, y), radius) = cv2.minEnclosingCircle(contour)
         if radius > 10:
@@ -81,7 +87,34 @@ def detect_spheres(frame):
     
     return detected_spheres
 
-def track_spheres():
+def detect_pins(frame):
+    hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    
+    wood_mask = cv2.inRange(hsv_frame, lower_wood, upper_wood)
+    wood_contours, _ = cv2.findContours(wood_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    
+    detected_pins = []
+    
+    for contour in wood_contours:
+        ((x, y), radius) = cv2.minEnclosingCircle(contour)
+        if radius > 5:  # Adjust the size threshold as needed
+            detected_pins.append((int(x), int(y), int(radius)))
+    
+    return detected_pins
+
+def calculate_pin_score(detected_pins):
+    pin_count = len(detected_pins)
+    
+    # Check if only the center pin is knocked over
+    if pin_count == 1:
+        x, y, radius = detected_pins[0]
+        for px, py in pin_positions[1:]:
+            if np.sqrt((x - px)**2 + (y - py)**2) < radius * 2:
+                return 6  # Only the center pin is down
+    
+    return pin_count * 2  # 2 points for each knocked-down pin
+
+def track_spheres_and_pins():
     global round_scores, total_scores, current_team_index, scored
     
     cap = cv2.VideoCapture(0)
@@ -93,6 +126,7 @@ def track_spheres():
             break
         
         detected_spheres = detect_spheres(frame)
+        detected_pins = detect_pins(frame)
         
         for (x, y, radius) in detected_spheres['white']:
             cv2.circle(frame, (x, y), radius, (0, 255, 0), 2)
@@ -100,6 +134,10 @@ def track_spheres():
         for (x, y, radius) in detected_spheres['dark_red']:
             cv2.circle(frame, (x, y), radius, (0, 0, 255), 2)
 
+        # Draw detected pins
+        for (x, y, radius) in detected_pins:
+            cv2.circle(frame, (x, y), radius, (128, 64, 0), 2)  # Brown color for wood pins
+        
         if len(detected_spheres['orange']) == 2 and not scored:
             (x1, y1, r1) = detected_spheres['orange'][0]
             (x2, y2, r2) = detected_spheres['orange'][1]
@@ -114,12 +152,19 @@ def track_spheres():
                 scored = True
                 print(f"Round Score for {players[current_team_index]}: {round_scores[current_team_index]}")
         
+        # Add pin scores
+        if detected_pins:
+            pin_score = calculate_pin_score(detected_pins)
+            round_scores[current_team_index] += pin_score
+            print(f"Pins knocked down! Pin Score: {pin_score}, Total Round Score: {round_scores[current_team_index]}")
+            scored = True
+        
         # Display the current round score and total score for the current team/player
         cv2.putText(frame, f"Round Score: {round_scores[current_team_index]}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
         cv2.putText(frame, f"Total Score: {total_scores[current_team_index]}", (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
         cv2.putText(frame, f"Current Team: {players[current_team_index]}", (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
         
-        cv2.imshow('Billiard Ball Tracking', frame)
+        cv2.imshow('Billiard Ball & Pin Tracking', frame)
         
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
@@ -140,5 +185,5 @@ def track_spheres():
 # Setup the game before starting the tracking
 setup_game()
 
-# Start tracking the spheres
-track_spheres()
+# Start tracking the spheres and pins
+track_spheres_and_pins()
